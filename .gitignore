@@ -1,0 +1,21 @@
+node_modules/
+.next/
+out/
+dist/
+.turbo/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.uv/
+
+# Data (runtime)
+data/
+
+# Env
+.env
+.env.local
+
+# OS
+.DS_Store

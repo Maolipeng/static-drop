@@ -1,0 +1,73 @@
+services:
+  # ──────────────────────────────────────────────
+  # FastAPI — deployment API + SQLite
+  # ──────────────────────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    volumes:
+      - staticdrop-data:/data
+    environment:
+      DEPLOY_TOKEN: ${DEPLOY_TOKEN:-change-me-to-a-random-string}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      DATA_DIR: /data
+      DEPLOYMENTS_DIR: /data/deployments
+      DB_PATH: /data/db/staticdrop.db
+      TMP_DIR: /data/tmp
+      MAX_ZIP_SIZE: ${MAX_ZIP_SIZE:-104857600}
+      MAX_TOTAL_SIZE: ${MAX_TOTAL_SIZE:-524288000}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-52428800}
+      MAX_FILE_COUNT: ${MAX_FILE_COUNT:-5000}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ──────────────────────────────────────────────
+  # Next.js — web console
+  # ──────────────────────────────────────────────
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_DEPLOY_TOKEN: ${DEPLOY_TOKEN:-change-me-to-a-random-string}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_DEPLOY_TOKEN: ${DEPLOY_TOKEN:-change-me-to-a-random-string}
+      API_INTERNAL_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # ──────────────────────────────────────────────
+  # Nginx — reverse proxy + static file serving
+  # ──────────────────────────────────────────────
+  nginx:
+    build:
+      context: ./infra/nginx
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:80"
+    volumes:
+      - staticdrop-data:/data:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+
+volumes:
+  staticdrop-data:

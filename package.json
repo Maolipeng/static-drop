@@ -1,0 +1,16 @@
+{
+  "name": "static-drop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "build:web": "turbo run build --filter=web",
+    "build:api": "echo 'API uses Docker, no build step needed'"
+  },
+  "devDependencies": {
+    "turbo": "^2.1.0"
+  },
+  "packageManager": "pnpm@9.12.0"
+}
