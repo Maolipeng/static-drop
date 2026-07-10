@@ -77,6 +77,25 @@ The app will be available at `http://localhost:8080`.
 
 Web 控制台支持中文和英文。首次访问时会根据浏览器语言自动选择，也可以通过右上角切换按钮手动切换；选择会保存在浏览器 Cookie 中。
 
+### 可选域名与 HTTPS
+
+内网环境可以继续使用 IP 和端口访问，例如 `http://192.168.1.10:8080`。公网环境可以启用 Caddy 自动 HTTPS：
+
+```dotenv
+PUBLIC_BASE_URL=https://drop.example.com
+DOMAIN_MODE=platform
+PUBLIC_DOMAIN=drop.example.com
+NGINX_BIND=0.0.0.0
+```
+
+然后确保 `drop.example.com` 的 DNS A/AAAA 记录指向服务器，并执行：
+
+```bash
+docker compose --profile domain up --build -d
+```
+
+Caddy 会监听 80/443 并自动申请、续期证书；原有 `/s/{deploymentId}/` 路径和 `http://服务器IP:8080` 访问仍然保留。`DOMAIN_MODE=disabled` 时不会启动 Caddy，也不会要求域名或 HTTPS。
+
 ### 构建源配置
 
 默认使用 Docker Hub、npm 官方源和 PyPI 官方源。需要使用国内镜像时，在 `.env` 中配置：

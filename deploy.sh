@@ -102,8 +102,13 @@ fi
 IMAGE_REGISTRY="$(grep '^IMAGE_REGISTRY=' .env 2>/dev/null | cut -d'=' -f2- || true)"
 NPM_REGISTRY="$(grep '^NPM_REGISTRY=' .env 2>/dev/null | cut -d'=' -f2- || true)"
 PYPI_INDEX_URL="$(grep '^PYPI_INDEX_URL=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+DOMAIN_MODE="$(grep '^DOMAIN_MODE=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+PUBLIC_DOMAIN="$(grep '^PUBLIC_DOMAIN=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+NGINX_BIND="$(grep '^NGINX_BIND=' .env 2>/dev/null | cut -d'=' -f2- || true)"
 NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org}"
 PYPI_INDEX_URL="${PYPI_INDEX_URL:-https://pypi.org/simple}"
+DOMAIN_MODE="${DOMAIN_MODE:-disabled}"
+NGINX_BIND="${NGINX_BIND:-0.0.0.0}"
 
 # ── 4. 写入 .env ────────────────────────────────────
 info "写入配置文件 .env..."
@@ -125,6 +130,13 @@ PUBLIC_BASE_URL=${PUBLIC_URL}
 
 # 直接跨域调用 API 的来源（Web 控制台不需要）
 CORS_ORIGINS=
+
+# 可选公网域名与 HTTPS
+DOMAIN_MODE=${DOMAIN_MODE}
+PUBLIC_DOMAIN=${PUBLIC_DOMAIN}
+NGINX_BIND=${NGINX_BIND}
+HTTP_PORT=80
+HTTPS_PORT=443
 
 # 部署 Token (用于 API 鉴权)
 DEPLOY_TOKEN=${DEPLOY_TOKEN}
@@ -153,7 +165,16 @@ echo ""
 info "构建 Docker 镜像（首次可能需要几分钟）..."
 echo ""
 
-if ! $COMPOSE_CMD build 2>&1; then
+COMPOSE_DOMAIN_ARGS=""
+if [[ "$DOMAIN_MODE" == "platform" ]]; then
+    if [[ -z "$PUBLIC_DOMAIN" ]]; then
+        error "DOMAIN_MODE=platform 时必须设置 PUBLIC_DOMAIN"
+    fi
+    COMPOSE_DOMAIN_ARGS="--profile domain"
+    info "启用平台域名 HTTPS: ${PUBLIC_DOMAIN}"
+fi
+
+if ! $COMPOSE_CMD $COMPOSE_DOMAIN_ARGS build 2>&1; then
     error "Docker 镜像构建失败。请检查上方错误信息。"
 fi
 
@@ -166,10 +187,12 @@ info "启动服务..."
 # 如果已有旧容器在运行，先停止
 if $COMPOSE_CMD ps --services --filter "status=running" 2>/dev/null | grep -q .; then
     warn "检测到已有运行中的容器，正在停止..."
-    $COMPOSE_CMD down 2>&1
+    # Include the optional domain profile so switching back to IP mode also
+    # removes a previously running Caddy container.
+    $COMPOSE_CMD --profile domain down 2>&1
 fi
 
-$COMPOSE_CMD up -d 2>&1
+$COMPOSE_CMD $COMPOSE_DOMAIN_ARGS up -d 2>&1
 
 echo ""
 info "等待服务健康检查..."

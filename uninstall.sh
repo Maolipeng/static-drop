@@ -54,14 +54,14 @@ fi
 
 # 停止并移除容器
 info "停止服务..."
-$COMPOSE_CMD down 2>&1
+$COMPOSE_CMD --profile domain down 2>&1
 success "服务已停止"
 
 # 清理数据
 if $PURGE; then
     echo ""
     info "清理 Docker volume..."
-    $COMPOSE_CMD down -v 2>&1
+    $COMPOSE_CMD --profile domain down -v 2>&1
     success "数据已删除"
 
     info "清理本地 data 目录..."
