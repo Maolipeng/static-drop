@@ -3,6 +3,11 @@ import { CopyButton } from "@/components/CopyButton";
 import { getDeployment, formatBytes, formatDate } from "@/lib/api";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getMessages } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n-server";
+
+// Force dynamic rendering - don't prerender at build time (API not available during build)
+export const dynamic = "force-dynamic";
 
 export default async function DeploymentDetailPage({
   params,
@@ -10,6 +15,7 @@ export default async function DeploymentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const messages = getMessages(await getRequestLocale());
 
   let deployment;
   try {
@@ -40,16 +46,16 @@ export default async function DeploymentDetailPage({
               />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-green-800">Deployed successfully!</h1>
+          <h1 className="text-2xl font-bold text-green-800">{messages.detail.success}</h1>
           <p className="mt-1 text-sm text-green-600">
-            Your site is live and ready to share.
+            {messages.detail.successHelp}
           </p>
         </div>
 
         {/* URL card */}
         <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Live URL
+            {messages.detail.liveUrl}
           </h2>
           <div className="flex items-center gap-2">
             <input
@@ -65,7 +71,7 @@ export default async function DeploymentDetailPage({
             rel="noopener noreferrer"
             className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand-600 hover:text-brand-700"
           >
-            Open site
+            {messages.detail.openSite}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
@@ -87,7 +93,7 @@ export default async function DeploymentDetailPage({
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Deploy ID
+              {messages.detail.deployId}
             </p>
             <p className="mt-1 truncate font-mono text-sm text-slate-700">
               {deployment.id}
@@ -95,7 +101,7 @@ export default async function DeploymentDetailPage({
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              File count
+              {messages.detail.fileCount}
             </p>
             <p className="mt-1 text-lg font-semibold text-slate-700">
               {deployment.file_count.toLocaleString()}
@@ -103,7 +109,7 @@ export default async function DeploymentDetailPage({
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Total size
+              {messages.detail.totalSize}
             </p>
             <p className="mt-1 text-lg font-semibold text-slate-700">
               {formatBytes(deployment.total_size)}
@@ -111,7 +117,7 @@ export default async function DeploymentDetailPage({
           </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Source
+              {messages.detail.source}
             </p>
             <p className="mt-1 truncate text-sm text-slate-700">
               {deployment.source_zip}
@@ -120,7 +126,7 @@ export default async function DeploymentDetailPage({
           {deployment.name && (
             <div className="rounded-xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Name
+                {messages.detail.name}
               </p>
               <p className="mt-1 truncate text-sm text-slate-700">
                 {deployment.name}
@@ -129,7 +135,7 @@ export default async function DeploymentDetailPage({
           )}
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Deployed at
+              {messages.detail.deployedAt}
             </p>
             <p className="mt-1 text-sm text-slate-700">
               {formatDate(deployment.created_at)}
@@ -157,13 +163,13 @@ export default async function DeploymentDetailPage({
                 d="M12 4.5v15m7.5-7.5h-15"
               />
             </svg>
-            New deployment
+            {messages.detail.newDeployment}
           </Link>
           <Link
             href="/deployments"
             className="inline-flex items-center gap-1.5 rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-50"
           >
-            View all
+            {messages.detail.viewAll}
           </Link>
         </div>
       </main>

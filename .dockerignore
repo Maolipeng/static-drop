@@ -1,0 +1,15 @@
+.git
+.playwright-mcp
+node_modules
+.next
+.turbo
+out
+dist
+.venv
+.uv
+__pycache__
+*.pyc
+data
+docs/superpowers
+.env
+.env.*

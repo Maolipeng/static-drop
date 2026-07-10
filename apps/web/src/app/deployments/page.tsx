@@ -1,8 +1,14 @@
 import { NavBar } from "@/components/NavBar";
 import { listDeployments, formatBytes, formatDate } from "@/lib/api";
 import Link from "next/link";
+import { getMessages } from "@/lib/i18n";
+import { getRequestLocale } from "@/lib/i18n-server";
+
+// Force dynamic rendering - don't prerender at build time (API not available during build)
+export const dynamic = "force-dynamic";
 
 export default async function DeploymentsPage() {
+  const messages = getMessages(await getRequestLocale());
   let deployments: Awaited<ReturnType<typeof listDeployments>>["deployments"] = [];
   let total = 0;
   let loadError: string | null = null;
@@ -15,7 +21,7 @@ export default async function DeploymentsPage() {
     loadError =
       err && typeof err === "object" && "error" in err
         ? String((err as { error: unknown }).error)
-        : "Failed to load deployments";
+        : messages.deployments.loadError;
   }
 
   return (
@@ -24,16 +30,16 @@ export default async function DeploymentsPage() {
       <main className="mx-auto max-w-5xl px-4 py-12">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Deployment History</h1>
+            <h1 className="text-2xl font-bold text-slate-900">{messages.deployments.title}</h1>
             <p className="mt-1 text-sm text-slate-500">
-              {total} {total === 1 ? "deployment" : "deployments"} total
+              {messages.deployments.total(total)}
             </p>
           </div>
           <Link
             href="/"
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
           >
-            New deployment
+            {messages.deployments.newDeployment}
           </Link>
         </div>
 
@@ -59,15 +65,15 @@ export default async function DeploymentsPage() {
                 d="M2.25 12.75V12A2.25 2.25 0 0 1 4.5 9.75h15A2.25 2.25 0 0 1 21.75 12v.75m-8.69-6.44-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z"
               />
             </svg>
-            <p className="text-lg font-medium text-slate-600">No deployments yet</p>
+            <p className="text-lg font-medium text-slate-600">{messages.deployments.noDeployments}</p>
             <p className="mt-1 text-sm text-slate-400">
-              Upload your first static site to get started.
+              {messages.deployments.noDeploymentsHelp}
             </p>
             <Link
               href="/"
               className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-brand-700"
             >
-              Upload now
+              {messages.deployments.uploadNow}
             </Link>
           </div>
         )}
@@ -77,10 +83,10 @@ export default async function DeploymentsPage() {
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50">
                 <tr>
-                  <th className="px-4 py-3 font-semibold text-slate-600">Name / ID</th>
-                  <th className="px-4 py-3 font-semibold text-slate-600">Files</th>
-                  <th className="px-4 py-3 font-semibold text-slate-600">Size</th>
-                  <th className="px-4 py-3 font-semibold text-slate-600">Deployed</th>
+                  <th className="px-4 py-3 font-semibold text-slate-600">{messages.deployments.nameId}</th>
+                  <th className="px-4 py-3 font-semibold text-slate-600">{messages.deployments.files}</th>
+                  <th className="px-4 py-3 font-semibold text-slate-600">{messages.deployments.size}</th>
+                  <th className="px-4 py-3 font-semibold text-slate-600">{messages.deployments.deployed}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -107,7 +113,7 @@ export default async function DeploymentsPage() {
                         href={`/deployments/${d.id}`}
                         className="font-medium text-brand-600 hover:text-brand-700"
                       >
-                        View →
+                        {messages.deployments.view}
                       </Link>
                     </td>
                   </tr>

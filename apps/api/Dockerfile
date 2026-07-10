@@ -1,13 +1,16 @@
-FROM python:3.12-slim
+ARG IMAGE_REGISTRY=
+FROM ${IMAGE_REGISTRY}python:3.12-slim
 
-# Install uv
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+ARG PYPI_INDEX_URL=https://pypi.org/simple
+
+# Install uv from the configured Python package index.
+RUN pip install "uv==0.11.28" --index-url "${PYPI_INDEX_URL}"
 
 WORKDIR /app
 
 # Install dependencies first (cached layer)
-COPY pyproject.toml ./
-RUN uv sync --no-dev --no-install-project
+COPY pyproject.toml uv.lock ./
+RUN UV_INDEX_URL="${PYPI_INDEX_URL}" uv sync --frozen --no-dev --no-install-project
 
 # Copy application code
 COPY app ./app

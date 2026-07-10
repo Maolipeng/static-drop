@@ -1,9 +1,13 @@
+"use client";
+
 /**
  * Shared navigation bar.
  */
 import Link from "next/link";
+import { useI18n } from "@/components/LanguageProvider";
 
 export function NavBar() {
+  const { messages, locale, setLocale } = useI18n();
   return (
     <nav className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
@@ -31,20 +35,28 @@ export function NavBar() {
             href="/"
             className="text-slate-600 transition hover:text-brand-600"
           >
-            Upload
+            {messages.nav.upload}
           </Link>
           <Link
             href="/deployments"
             className="text-slate-600 transition hover:text-brand-600"
           >
-            History
+            {messages.nav.history}
           </Link>
           <Link
             href="/settings"
             className="text-slate-600 transition hover:text-brand-600"
           >
-            Settings
+            {messages.nav.settings}
           </Link>
+          <button
+            type="button"
+            onClick={() => setLocale(locale === "en" ? "zh" : "en")}
+            className="rounded-md border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 transition hover:border-brand-400 hover:text-brand-600"
+            aria-label={messages.nav.switchTo}
+          >
+            {messages.nav.switchTo}
+          </button>
         </div>
       </div>
     </nav>

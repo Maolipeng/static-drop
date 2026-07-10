@@ -1,10 +1,13 @@
 # ---- Dependencies ----
-FROM node:20-alpine AS deps
+ARG IMAGE_REGISTRY=
+FROM ${IMAGE_REGISTRY}node:20-alpine AS deps
+ARG NPM_REGISTRY=https://registry.npmjs.org
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Enable pnpm
-RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+# Enable pnpm with the configured npm registry
+RUN npm config set registry "${NPM_REGISTRY}" && \
+    corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 # Copy workspace root files (including lockfile for frozen install)
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json .npmrc ./
@@ -14,8 +17,10 @@ COPY apps/web/package.json apps/web/
 RUN pnpm install --frozen-lockfile
 
 # ---- Builder ----
-FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+FROM ${IMAGE_REGISTRY}node:20-alpine AS builder
+ARG NPM_REGISTRY=https://registry.npmjs.org
+RUN npm config set registry "${NPM_REGISTRY}" && \
+    corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
@@ -23,15 +28,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml turbo.json .npmrc ./
 COPY apps/web ./apps/web
 
-# Build args for env injection
-ARG NEXT_PUBLIC_DEPLOY_TOKEN=change-me-to-a-random-string
-ENV NEXT_PUBLIC_DEPLOY_TOKEN=$NEXT_PUBLIC_DEPLOY_TOKEN
-
 # Build
 RUN pnpm --filter web build
 
 # ---- Runner ----
-FROM node:20-alpine AS runner
+FROM ${IMAGE_REGISTRY}node:20-alpine AS runner
 RUN apk add --no-cache wget
 WORKDIR /app
 

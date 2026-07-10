@@ -1,12 +1,12 @@
 /**
  * API client for communicating with the FastAPI backend.
  *
- * - Client-side: requests go through nginx (same origin) at /api/*
+ * - Client-side: authenticated requests go through the Next.js BFF at /console-api/*
  * - Server-side: requests go directly to the FastAPI container via API_INTERNAL_URL
  *   (defaults to http://api:8000 for Docker Compose networking).
  */
 
-const TOKEN = process.env.NEXT_PUBLIC_DEPLOY_TOKEN || "";
+const TOKEN = process.env.DEPLOY_TOKEN || "";
 
 /** Base URL for API requests. Empty string = same-origin (client-side / nginx). */
 const API_BASE =
@@ -60,6 +60,7 @@ export function uploadZip(
   file: File,
   name: string | undefined,
   onProgress: (percent: number) => void,
+  env?: Record<string, string>,
 ): Promise<DeployResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -67,6 +68,9 @@ export function uploadZip(
     formData.append("file", file);
     if (name) {
       formData.append("name", name);
+    }
+    if (env && Object.keys(env).length > 0) {
+      formData.append("env", JSON.stringify(env));
     }
 
     xhr.upload.addEventListener("progress", (e) => {
@@ -99,8 +103,7 @@ export function uploadZip(
       reject({ error: "Upload aborted", code: "ABORTED" });
     });
 
-    xhr.open("POST", "/api/deploy");
-    xhr.setRequestHeader("Authorization", `Bearer ${TOKEN}`);
+    xhr.open("POST", "/console-api/deploy");
     xhr.send(formData);
   });
 }
@@ -114,6 +117,7 @@ export function uploadFolder(
   files: File[],
   name: string | undefined,
   onProgress: (percent: number) => void,
+  env?: Record<string, string>,
 ): Promise<DeployResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -130,6 +134,9 @@ export function uploadFolder(
     if (name) {
       formData.append("name", name);
     }
+    if (env && Object.keys(env).length > 0) {
+      formData.append("env", JSON.stringify(env));
+    }
 
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable) {
@@ -161,8 +168,7 @@ export function uploadFolder(
       reject({ error: "Upload aborted", code: "ABORTED" });
     });
 
-    xhr.open("POST", "/api/deploy-folder");
-    xhr.setRequestHeader("Authorization", `Bearer ${TOKEN}`);
+    xhr.open("POST", "/console-api/deploy-folder");
     xhr.send(formData);
   });
 }
@@ -220,9 +226,8 @@ export async function uploadZipFetch(
   formData.append("file", file);
   if (name) formData.append("name", name);
 
-  const res = await fetch("/api/deploy", {
+  const res = await fetch("/console-api/deploy", {
     method: "POST",
-    headers: authHeaders(),
     body: formData,
   });
 

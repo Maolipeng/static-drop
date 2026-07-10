@@ -98,6 +98,13 @@ else
     success "生成 Token: ${BOLD}${DEPLOY_TOKEN}${NC}"
 fi
 
+# 复用已有构建源配置；未配置时默认使用官方源。
+IMAGE_REGISTRY="$(grep '^IMAGE_REGISTRY=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+NPM_REGISTRY="$(grep '^NPM_REGISTRY=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+PYPI_INDEX_URL="$(grep '^PYPI_INDEX_URL=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org}"
+PYPI_INDEX_URL="${PYPI_INDEX_URL:-https://pypi.org/simple}"
+
 # ── 4. 写入 .env ────────────────────────────────────
 info "写入配置文件 .env..."
 
@@ -116,8 +123,16 @@ cat > .env <<EOF
 # 公开访问地址
 PUBLIC_BASE_URL=${PUBLIC_URL}
 
+# 直接跨域调用 API 的来源（Web 控制台不需要）
+CORS_ORIGINS=
+
 # 部署 Token (用于 API 鉴权)
 DEPLOY_TOKEN=${DEPLOY_TOKEN}
+
+# 构建源（IMAGE_REGISTRY 留空表示 Docker Hub）
+IMAGE_REGISTRY=${IMAGE_REGISTRY}
+NPM_REGISTRY=${NPM_REGISTRY}
+PYPI_INDEX_URL=${PYPI_INDEX_URL}
 
 # 宿主机端口 (Nginx 映射)
 PORT=${PORT}
@@ -127,6 +142,8 @@ MAX_ZIP_SIZE=104857600
 MAX_TOTAL_SIZE=524288000
 MAX_FILE_SIZE=52428800
 MAX_FILE_COUNT=5000
+MAX_STORAGE_SIZE=5368709120
+MIN_FREE_SPACE=67108864
 EOF
 
 success ".env 已写入"

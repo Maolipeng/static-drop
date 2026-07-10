@@ -12,10 +12,12 @@ Endpoints:
 
 from __future__ import annotations
 
-import shutil
+from contextlib import asynccontextmanager
+import re
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -25,31 +27,30 @@ from . import config
 from . import db
 from . import deploy as deploy_logic
 
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    config.TMP_DIR.mkdir(parents=True, exist_ok=True)
+    config.DEPLOYMENTS_DIR.mkdir(parents=True, exist_ok=True)
+    db.init_db()
+    yield
+
+
 app = FastAPI(
     title="StaticDrop API",
     version="0.1.0",
     docs_url="/api/docs",
     openapi_url="/api/openapi.json",
+    lifespan=lifespan,
 )
 
-# CORS — allow the Next.js dev server (prod goes through nginx so same origin)
+# CORS is opt-in. Production uses same-origin requests through nginx, while
+# direct browser clients must explicitly configure CORS_ORIGINS.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=config.CORS_ORIGINS,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
-
-
-# ---------------------------------------------------------------------------
-# Startup
-# ---------------------------------------------------------------------------
-
-@app.on_event("startup")
-def _startup() -> None:
-    config.TMP_DIR.mkdir(parents=True, exist_ok=True)
-    config.DEPLOYMENTS_DIR.mkdir(parents=True, exist_ok=True)
-    db.init_db()
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +94,63 @@ def _deploy_id() -> str:
     return "dep_" + uuid.uuid4().hex
 
 
+def _parse_env(env_str: str | None) -> dict[str, str] | None:
+    """
+    Parse the env parameter from the deploy request.
+
+    Accepts a JSON string like '{"API_URL":"https://api.example.com"}'
+    or a simple key=value format like 'API_URL=https://api.example.com'.
+
+    Returns a dict, or None if env_str is empty/None.
+    """
+    if not env_str:
+        return None
+
+    import json
+
+    env_str = env_str.strip()
+    if len(env_str) > 16_384:
+        raise ValueError("Runtime environment configuration is too large")
+
+    # Try JSON first
+    try:
+        parsed = json.loads(env_str)
+    except json.JSONDecodeError:
+        parsed = None
+
+    if parsed is not None:
+        if not isinstance(parsed, dict):
+            raise ValueError("env must be a JSON object")
+        result = {str(k): str(v) for k, v in parsed.items()}
+    else:
+        # Fallback: parse key=value pairs (newline or comma separated)
+        result = {}
+        for line in env_str.replace(",", "\n").split("\n"):
+            line = line.strip()
+            if "=" in line:
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip()
+                if k:
+                    result[k] = v
+
+    if not result:
+        raise ValueError("env must contain at least one key-value pair")
+    if len(result) > 32:
+        raise ValueError("env contains too many variables")
+    for key, value in result.items():
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
+            raise ValueError(f"Invalid environment variable name: {key}")
+        if len(value) > 2048:
+            raise ValueError(f"Environment variable is too long: {key}")
+    if "API_URL" in result:
+        parsed_url = urlparse(result["API_URL"])
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+            raise ValueError("API_URL must be an absolute http(s) URL")
+
+    return result
+
+
 def _format_deployment(row: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -132,6 +190,7 @@ def health() -> dict[str, Any]:
 async def deploy(
     file: UploadFile = File(...),
     name: str | None = Form(default=None),
+    env: str | None = Form(default=None),
     _auth: None = Depends(require_token),
 ) -> JSONResponse:
     # --- validate filename / extension ---
@@ -175,8 +234,31 @@ async def deploy(
         deploy_logic.cleanup_tmp(deploy_id)
         return _error(exc.message, exc.code, exc.status)
 
-    # --- rewrite absolute paths in HTML for subpath deployment ---
-    deploy_logic.rewrite_html_paths(deploy_root)
+    try:
+        parsed_env = _parse_env(env)
+    except ValueError as exc:
+        deploy_logic.cleanup_tmp(deploy_id)
+        return _error(str(exc), "VALIDATION_ERROR", 422)
+
+    # --- rewrite assets and inject runtime config ---
+    public_prefix = f"/s/{deploy_id}"
+    try:
+        deploy_logic.rewrite_html_paths(deploy_root, public_prefix)
+        deploy_logic.rewrite_css_paths(deploy_root, public_prefix)
+        deploy_logic.inject_env_config(
+            deploy_root,
+            parsed_env,
+            f"{public_prefix}/__staticdrop_env__.js",
+        )
+    except OSError as exc:
+        deploy_logic.cleanup_tmp(deploy_id)
+        return _error(f"Failed to prepare deployment: {exc}", "INTERNAL", 500)
+
+    incoming_size = deploy_logic.count_files_and_size(deploy_root)[1]
+    storage_error = deploy_logic.storage_error(incoming_size)
+    if storage_error:
+        deploy_logic.cleanup_tmp(deploy_id)
+        return _error(storage_error, "QUOTA_EXCEEDED", 413)
 
     # --- move to final location ---
     try:
@@ -209,6 +291,7 @@ async def deploy(
 async def deploy_folder(
     files: list[UploadFile] = File(...),
     name: str | None = Form(default=None),
+    env: str | None = Form(default=None),
     _auth: None = Depends(require_token),
 ) -> JSONResponse:
     """
@@ -223,44 +306,15 @@ async def deploy_folder(
     config.TMP_DIR.mkdir(parents=True, exist_ok=True)
     tmp_extract = config.TMP_DIR / deploy_id
 
-    # --- read all files into memory with their relative paths ---
-    # We read+validate in one pass, accumulating total size for the quota check.
-    files_with_paths: list[tuple[bytes, str]] = []
-    running_size = 0
-
     try:
-        for upload_file in files:
-            relative_path = upload_file.filename or upload_file.filename or ""
-            if not relative_path:
-                continue
-
-            # Read content with size check
-            content = await upload_file.read()
-            running_size += len(content)
-
-            # Enforce max zip size as the total upload size limit
-            if running_size > config.MAX_ZIP_SIZE:
-                deploy_logic.cleanup_tmp(deploy_id)
-                return _error(
-                    f"Total upload size exceeds maximum of {config.MAX_ZIP_SIZE} bytes",
-                    "QUOTA_EXCEEDED",
-                    413,
-                )
-
-            files_with_paths.append((content, relative_path))
-            await upload_file.close()
+        file_count, total_size, source_name = await deploy_logic.safe_write_uploaded_files(
+            files, tmp_extract
+        )
     except Exception as exc:
         deploy_logic.cleanup_tmp(deploy_id)
-        return _error(f"Failed to read uploaded files: {exc}", "INTERNAL", 500)
-
-    # --- safe write files ---
-    try:
-        file_count, total_size = await deploy_logic.safe_write_files(
-            files_with_paths, tmp_extract
-        )
-    except deploy_logic.DeployError as exc:
-        deploy_logic.cleanup_tmp(deploy_id)
-        return _error(exc.message, exc.code, exc.status)
+        if isinstance(exc, deploy_logic.DeployError):
+            return _error(exc.message, exc.code, exc.status)
+        return _error(f"Failed to write uploaded files: {exc}", "INTERNAL", 500)
 
     # --- find deploy root (the dir with index.html) ---
     try:
@@ -269,8 +323,30 @@ async def deploy_folder(
         deploy_logic.cleanup_tmp(deploy_id)
         return _error(exc.message, exc.code, exc.status)
 
-    # --- rewrite absolute paths in HTML for subpath deployment ---
-    deploy_logic.rewrite_html_paths(deploy_root)
+    try:
+        parsed_env = _parse_env(env)
+    except ValueError as exc:
+        deploy_logic.cleanup_tmp(deploy_id)
+        return _error(str(exc), "VALIDATION_ERROR", 422)
+
+    public_prefix = f"/s/{deploy_id}"
+    try:
+        deploy_logic.rewrite_html_paths(deploy_root, public_prefix)
+        deploy_logic.rewrite_css_paths(deploy_root, public_prefix)
+        deploy_logic.inject_env_config(
+            deploy_root,
+            parsed_env,
+            f"{public_prefix}/__staticdrop_env__.js",
+        )
+    except OSError as exc:
+        deploy_logic.cleanup_tmp(deploy_id)
+        return _error(f"Failed to prepare deployment: {exc}", "INTERNAL", 500)
+
+    incoming_size = deploy_logic.count_files_and_size(deploy_root)[1]
+    storage_error = deploy_logic.storage_error(incoming_size)
+    if storage_error:
+        deploy_logic.cleanup_tmp(deploy_id)
+        return _error(storage_error, "QUOTA_EXCEEDED", 413)
 
     # --- move to final location ---
     try:
@@ -287,8 +363,8 @@ async def deploy_folder(
 
     # --- write to DB ---
     url_path = f"/s/{deploy_id}/"
-    # Use the top-level folder name from the first file's path as source
-    source_name = files_with_paths[0][1].split("/")[0] if files_with_paths else "folder"
+    # Use the first uploaded path as the source label.
+    source_name = (source_name or "folder").replace("\\", "/").split("/")[0]
     record = db.insert_deployment(
         deploy_id=deploy_id,
         name=name,

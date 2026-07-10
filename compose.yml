@@ -6,12 +6,16 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
+      args:
+        IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
+        PYPI_INDEX_URL: ${PYPI_INDEX_URL:-https://pypi.org/simple}
     restart: unless-stopped
     volumes:
       - staticdrop-data:/data
     environment:
       DEPLOY_TOKEN: ${DEPLOY_TOKEN:-change-me-to-a-random-string}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
       DATA_DIR: /data
       DEPLOYMENTS_DIR: /data/deployments
       DB_PATH: /data/db/staticdrop.db
@@ -20,6 +24,8 @@ services:
       MAX_TOTAL_SIZE: ${MAX_TOTAL_SIZE:-524288000}
       MAX_FILE_SIZE: ${MAX_FILE_SIZE:-52428800}
       MAX_FILE_COUNT: ${MAX_FILE_COUNT:-5000}
+      MAX_STORAGE_SIZE: ${MAX_STORAGE_SIZE:-5368709120}
+      MIN_FREE_SPACE: ${MIN_FREE_SPACE:-67108864}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 30s
@@ -35,11 +41,12 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile
       args:
-        NEXT_PUBLIC_DEPLOY_TOKEN: ${DEPLOY_TOKEN:-change-me-to-a-random-string}
+        IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
+        NPM_REGISTRY: ${NPM_REGISTRY:-https://registry.npmjs.org}
     restart: unless-stopped
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_DEPLOY_TOKEN: ${DEPLOY_TOKEN:-change-me-to-a-random-string}
+      DEPLOY_TOKEN: ${DEPLOY_TOKEN:-change-me-to-a-random-string}
       API_INTERNAL_URL: http://api:8000
     depends_on:
       api:
@@ -58,6 +65,8 @@ services:
     build:
       context: ./infra/nginx
       dockerfile: Dockerfile
+      args:
+        IMAGE_REGISTRY: ${IMAGE_REGISTRY:-}
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:80"

@@ -1,4 +1,7 @@
+# Dependencies
 node_modules/
+
+# Build outputs
 .next/
 out/
 dist/
@@ -9,13 +12,26 @@ __pycache__/
 *.pyc
 .venv/
 .uv/
+.pytest_cache/
 
-# Data (runtime)
+# Data (runtime — deployments, DB, tmp)
 data/
 
-# Env
+# Environment variables (contains secrets — never commit)
 .env
 .env.local
 
 # OS
 .DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Playwright test artifacts
+.playwright-mcp/
+
+# uv lock is generated, keep it for reproducible builds
+# (apps/api/uv.lock IS committed)

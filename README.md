@@ -73,6 +73,24 @@ docker compose up --build -d
 
 The app will be available at `http://localhost:8080`.
 
+### 界面语言
+
+Web 控制台支持中文和英文。首次访问时会根据浏览器语言自动选择，也可以通过右上角切换按钮手动切换；选择会保存在浏览器 Cookie 中。
+
+### 构建源配置
+
+默认使用 Docker Hub、npm 官方源和 PyPI 官方源。需要使用国内镜像时，在 `.env` 中配置：
+
+```dotenv
+IMAGE_REGISTRY=docker.m.daocloud.io/library/
+NPM_REGISTRY=https://registry.npmmirror.com
+PYPI_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+`IMAGE_REGISTRY` 必须包含末尾的 `/`；留空时会使用官方基础镜像。三个配置彼此独立，可以只切换其中一个源。
+
+生产环境的 Web 控制台通过同源服务端代理访问 API，部署 Token 不会下发到浏览器。只有需要让其他站点直接调用 API 时，才配置 `CORS_ORIGINS`，多个来源用逗号分隔。
+
 ### 3. Deploy a site
 
 1. Open `http://localhost:8080` in your browser.
@@ -137,7 +155,7 @@ DATA_DIR=/tmp/staticdrop-dev DEPLOY_TOKEN=dev-token uv run uvicorn app.main:app 
 
 # Start Next.js (terminal 2)
 cd apps/web
-API_URL=http://localhost:8000 NEXT_PUBLIC_DEPLOY_TOKEN=dev-token pnpm dev
+API_URL=http://localhost:8000 DEPLOY_TOKEN=dev-token pnpm dev
 ```
 
 ## Limits (defaults, overridable via env)
@@ -148,6 +166,8 @@ API_URL=http://localhost:8000 NEXT_PUBLIC_DEPLOY_TOKEN=dev-token pnpm dev
 | Max total uncompressed | 500 MB |
 | Max single file | 50 MB |
 | Max file count | 5,000 |
+| Max deployed storage | 5 GB |
+| Required free-space reserve | 64 MB |
 | Required | `index.html` in zip |
 
 Blocked file types: `.php`, `.exe`, `.sh`, `.py`, `.jar`, `.dll`, `.so`, `.bat`, `.env`, and more (see `apps/api/app/config.py`).
