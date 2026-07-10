@@ -38,7 +38,7 @@ const messages = {
       maxUncompressed: "Max total (uncompressed)", maxFile: "Max single file", maxCount: "Max file count", limitsHelp: "These limits can be overridden via environment variables on the API server.",
     },
     common: { copy: "Copy", copied: "Copied!", failedToReachApi: "Failed to reach API" },
-    auth: { title: "Sign in", email: "Email", password: "Password", submit: "Sign in", register: "Create account", switchRegister: "Need an account? Create one", switchLogin: "Already have an account? Sign in", disabled: "User authentication is disabled. Set AUTH_MODE=users to enable it.", failed: "Authentication failed" },
+    auth: { title: "Sign in", email: "Email", password: "Password", submit: "Sign in", register: "Create account", switchRegister: "Need an account? Create one", switchLogin: "Already have an account? Sign in", disabled: "User authentication is disabled. Set AUTH_MODE=users to enable it.", failed: "Authentication failed", loginSuccess: "Signed in successfully", logout: "Sign out", admin: "Admin", automation: "Token mode" },
   },
   zh: {
     nav: { upload: "上传", history: "部署记录", settings: "设置", switchTo: "English" },
@@ -61,7 +61,7 @@ const messages = {
       title: "设置", systemHealth: "系统健康", error: "错误", database: "数据库", dataDirectory: "数据目录", deploymentsPath: "部署目录", authentication: "身份验证", tokenConfigured: "Token 已配置", defaultToken: "正在使用默认 Token — 请设置 DEPLOY_TOKEN", tokenHelp: "Token 通过 API 服务端的 DEPLOY_TOKEN 环境变量配置。", uploadLimits: "上传限制", maxZip: "最大 zip 大小", maxUncompressed: "最大总大小（解压后）", maxFile: "单文件最大大小", maxCount: "最大文件数", limitsHelp: "这些限制可以通过 API 服务端的环境变量覆盖。",
     },
     common: { copy: "复制", copied: "已复制！", failedToReachApi: "无法连接 API" },
-    auth: { title: "登录", email: "邮箱", password: "密码", submit: "登录", register: "创建账号", switchRegister: "还没有账号？创建账号", switchLogin: "已有账号？登录", disabled: "用户认证未启用，请设置 AUTH_MODE=users。", failed: "认证失败" },
+    auth: { title: "登录", email: "邮箱", password: "密码", submit: "登录", register: "创建账号", switchRegister: "还没有账号？创建账号", switchLogin: "已有账号？登录", disabled: "用户认证未启用，请设置 AUTH_MODE=users。", failed: "认证失败", loginSuccess: "登录成功", logout: "退出登录", admin: "管理员", automation: "Token 模式" },
   },
 } as const;
 

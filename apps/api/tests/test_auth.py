@@ -34,6 +34,7 @@ def test_users_mode_isolates_projects_between_accounts(tmp_path: Path, monkeypat
         )
         assert upload.status_code == 200
         project_id = upload.json()["project_id"]
+        assert alice.get(f"/api/deployments/{upload.json()['id']}").status_code == 200
 
     with TestClient(app) as bob:
         assert bob.post("/api/auth/register", json={"email": "bob@example.com", "password": "bob-password"}).status_code == 200

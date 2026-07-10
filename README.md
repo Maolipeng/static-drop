@@ -65,7 +65,7 @@ Upload your static build artifact (Vite `dist`, React `build`, Next.js `out`, et
 ```bash
 # 1. 配置环境变量
 cp .env.example .env
-# 编辑 .env — 至少设置 DEPLOY_TOKEN
+# 设置 DEPLOY_TOKEN 和 ADMIN_PASSWORD；AUTH_MODE=users 时可注册普通用户
 
 # 2. 构建并启动
 docker compose up --build -d

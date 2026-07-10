@@ -105,10 +105,21 @@ PYPI_INDEX_URL="$(grep '^PYPI_INDEX_URL=' .env 2>/dev/null | cut -d'=' -f2- || t
 DOMAIN_MODE="$(grep '^DOMAIN_MODE=' .env 2>/dev/null | cut -d'=' -f2- || true)"
 PUBLIC_DOMAIN="$(grep '^PUBLIC_DOMAIN=' .env 2>/dev/null | cut -d'=' -f2- || true)"
 NGINX_BIND="$(grep '^NGINX_BIND=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+AUTH_MODE="$(grep '^AUTH_MODE=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+ADMIN_EMAIL="$(grep '^ADMIN_EMAIL=' .env 2>/dev/null | cut -d'=' -f2- || true)"
+ADMIN_PASSWORD="$(grep '^ADMIN_PASSWORD=' .env 2>/dev/null | cut -d'=' -f2- || true)"
 NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org}"
 PYPI_INDEX_URL="${PYPI_INDEX_URL:-https://pypi.org/simple}"
 DOMAIN_MODE="${DOMAIN_MODE:-disabled}"
 NGINX_BIND="${NGINX_BIND:-0.0.0.0}"
+AUTH_MODE="${AUTH_MODE:-users}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
+if [[ "$AUTH_MODE" == "users" && ( -z "$ADMIN_PASSWORD" || "$ADMIN_PASSWORD" == "change-me-to-a-random-password" ) ]]; then
+    ADMIN_PASSWORD=$(openssl rand -hex 24 2>/dev/null || python3 -c "import secrets; print(secrets.token_hex(24))")
+    GENERATED_ADMIN_PASSWORD=true
+else
+    GENERATED_ADMIN_PASSWORD=false
+fi
 
 # ── 4. 写入 .env ────────────────────────────────────
 info "写入配置文件 .env..."
@@ -141,6 +152,11 @@ HTTPS_PORT=443
 # 部署 Token (用于 API 鉴权)
 DEPLOY_TOKEN=${DEPLOY_TOKEN}
 
+# 用户登录（Bearer Token 仍可用于自动化 API）
+AUTH_MODE=${AUTH_MODE}
+ADMIN_EMAIL=${ADMIN_EMAIL}
+ADMIN_PASSWORD=${ADMIN_PASSWORD}
+
 # 构建源（IMAGE_REGISTRY 留空表示 Docker Hub）
 IMAGE_REGISTRY=${IMAGE_REGISTRY}
 NPM_REGISTRY=${NPM_REGISTRY}
@@ -161,6 +177,9 @@ AUTO_CLEANUP_ENABLED=true
 EOF
 
 success ".env 已写入"
+if [[ "$AUTH_MODE" == "users" && "$GENERATED_ADMIN_PASSWORD" == "true" ]]; then
+    success "已启用用户登录，初始管理员: ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}"
+fi
 
 # ── 5. 构建 Docker 镜像 ─────────────────────────────
 echo ""

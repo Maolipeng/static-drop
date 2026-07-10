@@ -20,7 +20,7 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const session = request.cookies.get("staticdrop_session")?.value;
   if (session) {
     headers.set("cookie", `staticdrop_session=${encodeURIComponent(session)}`);
-  } else {
+  } else if (!(path.length === 2 && path[0] === "auth" && path[1] === "me")) {
     headers.set("authorization", `Bearer ${DEPLOY_TOKEN}`);
   }
 

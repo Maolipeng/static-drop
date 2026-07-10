@@ -457,7 +457,7 @@ def get_deployment(deploy_id: str) -> dict[str, Any] | None:
     with get_connection() as conn:
         row = conn.execute(
             """
-            SELECT d.*, p.name AS project_name, p.slug AS project_slug,
+            SELECT d.*, p.name AS project_name, p.slug AS project_slug, p.owner_id,
                    p.current_deployment_id = d.id AS is_current
             FROM deployments d
             LEFT JOIN projects p ON p.id = d.project_id

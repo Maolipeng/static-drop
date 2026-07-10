@@ -11,12 +11,14 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setSuccess("");
     try {
       const response = await fetch(`/console-api/auth/${isRegister ? "register" : "login"}`, {
         method: "POST",
@@ -28,8 +30,11 @@ export default function LoginPage() {
         setError(payload?.error || messages.auth.failed);
         return;
       }
-      router.push("/");
-      router.refresh();
+      setSuccess(messages.auth.loginSuccess);
+      window.setTimeout(() => {
+        router.push("/");
+        router.refresh();
+      }, 500);
     } catch {
       setError(messages.auth.failed);
     } finally {
@@ -48,6 +53,7 @@ export default function LoginPage() {
         <label className="mb-1 block text-sm font-medium text-slate-700">{messages.auth.password}</label>
         <input required minLength={8} type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2" />
         {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {success && <p className="mb-4 rounded-lg bg-green-50 p-3 text-sm text-green-700">{success}</p>}
         <button disabled={loading} className="w-full rounded-lg bg-brand-600 px-4 py-2 font-medium text-white disabled:opacity-50">
           {loading ? "…" : isRegister ? messages.auth.register : messages.auth.submit}
         </button>
