@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { uploadZip, uploadFolder, formatBytes, type ApiError } from "@/lib/api";
+import { listProjects, uploadZip, uploadFolder, deployGithub, formatBytes, type ApiError, type Project } from "@/lib/api";
 import { useI18n } from "@/components/LanguageProvider";
 
 type Status = "idle" | "uploading" | "success" | "error";
@@ -18,9 +18,18 @@ export function DropZone() {
   const [progress, setProgress] = useState(0);
   const [uploadLabel, setUploadLabel] = useState("");
   const [siteName, setSiteName] = useState("");
+  const [projectId, setProjectId] = useState("");
+  const [projects, setProjects] = useState<Project[]>([]);
   const [apiUrl, setApiUrl] = useState("");
   const [error, setError] = useState<string>("");
   const [errorCode, setErrorCode] = useState<string>("");
+  const [sourceMode, setSourceMode] = useState<"upload" | "github">("upload");
+  const [githubRepository, setGithubRepository] = useState("");
+  const [githubRef, setGithubRef] = useState("");
+
+  useEffect(() => {
+    listProjects().then((result) => setProjects(result.projects)).catch(() => undefined);
+  }, []);
 
   // Build env object from optional fields
   const buildEnv = useCallback((): Record<string, string> | undefined => {
@@ -46,7 +55,7 @@ export function DropZone() {
       setStatus("uploading");
       setProgress(0);
 
-      uploadZip(file, siteName || undefined, (pct) => setProgress(pct), buildEnv())
+      uploadZip(file, siteName || undefined, (pct) => setProgress(pct), buildEnv(), projectId || undefined)
         .then((result) => {
           setStatus("success");
           setProgress(100);
@@ -58,7 +67,7 @@ export function DropZone() {
           setErrorCode(err.code || "INTERNAL");
         });
     },
-    [siteName, router, buildEnv],
+    [siteName, projectId, router, buildEnv],
   );
 
   const handleFolderFiles = useCallback(
@@ -80,7 +89,7 @@ export function DropZone() {
       setStatus("uploading");
       setProgress(0);
 
-      uploadFolder(fileArray, siteName || undefined, (pct) => setProgress(pct), buildEnv())
+      uploadFolder(fileArray, siteName || undefined, (pct) => setProgress(pct), buildEnv(), projectId || undefined)
         .then((result) => {
           setStatus("success");
           setProgress(100);
@@ -92,8 +101,33 @@ export function DropZone() {
           setErrorCode(err.code || "INTERNAL");
         });
     },
-    [siteName, router, buildEnv],
+    [siteName, projectId, router, buildEnv],
   );
+
+  const handleGithubDeploy = useCallback(() => {
+    if (!githubRepository.trim()) {
+      setError(messages.upload.githubPlaceholder);
+      setErrorCode("VALIDATION_ERROR");
+      setStatus("error");
+      return;
+    }
+    setUploadLabel(githubRepository.trim());
+    setError("");
+    setErrorCode("");
+    setStatus("uploading");
+    setProgress(0);
+    deployGithub(githubRepository.trim(), githubRef.trim() || undefined, siteName || undefined, projectId || undefined)
+      .then((result) => {
+        setStatus("success");
+        setProgress(100);
+        router.push(`/deployments/${result.id}`);
+      })
+      .catch((err: ApiError) => {
+        setStatus("error");
+        setError(err.error || messages.upload.failed);
+        setErrorCode(err.code || "INTERNAL");
+      });
+  }, [githubRepository, githubRef, siteName, projectId, router, messages.upload]);
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
@@ -142,8 +176,32 @@ export function DropZone() {
 
   return (
     <div className="w-full">
-      {/* Optional name field */}
+      {/* Project selection */}
       <div className="mb-4">
+        <label
+          htmlFor="projectId"
+          className="mb-1 block text-sm font-medium text-slate-700"
+        >
+          {messages.upload.selectProject}
+        </label>
+        <select
+          id="projectId"
+          value={projectId}
+          onChange={(e) => setProjectId(e.target.value)}
+          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          disabled={status === "uploading"}
+        >
+          <option value="">{messages.upload.newProject}</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name}{project.current_version ? ` · v${project.current_version}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* New project name */}
+      {!projectId && <div className="mb-4">
         <label
           htmlFor="siteName"
           className="mb-1 block text-sm font-medium text-slate-700"
@@ -159,7 +217,7 @@ export function DropZone() {
           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
           disabled={status === "uploading"}
         />
-      </div>
+      </div>}
 
       {/* Optional backend API URL */}
       <div className="mb-4">
@@ -184,8 +242,25 @@ export function DropZone() {
         </p>
       </div>
 
+      <div className="mb-4 flex gap-2">
+        <button type="button" onClick={() => setSourceMode("upload")} className={`rounded-lg px-3 py-2 text-sm font-medium ${sourceMode === "upload" ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600"}`}>{messages.upload.uploadMode}</button>
+        <button type="button" onClick={() => setSourceMode("github")} className={`rounded-lg px-3 py-2 text-sm font-medium ${sourceMode === "github" ? "bg-brand-600 text-white" : "bg-slate-100 text-slate-600"}`}>{messages.upload.githubMode}</button>
+      </div>
+
+      {sourceMode === "github" && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <label htmlFor="githubRepository" className="mb-1 block text-sm font-medium text-slate-700">{messages.upload.github}</label>
+          <input id="githubRepository" type="url" value={githubRepository} onChange={(e) => setGithubRepository(e.target.value)} placeholder={messages.upload.githubPlaceholder} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500" disabled={status === "uploading"} />
+          <label htmlFor="githubRef" className="mb-1 mt-3 block text-sm font-medium text-slate-700">{messages.upload.githubRef} <span className="text-slate-400">({messages.upload.optional})</span></label>
+          <input id="githubRef" value={githubRef} onChange={(e) => setGithubRef(e.target.value)} placeholder="main" className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-brand-500" disabled={status === "uploading"} />
+          <p className="mt-2 text-xs text-slate-500">{messages.upload.githubHelp}</p>
+          <button type="button" onClick={handleGithubDeploy} disabled={status === "uploading"} className="mt-4 rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50">{messages.upload.githubDeploy}</button>
+        </div>
+      )}
+
       {/* Drop zone */}
       <div
+        style={{ display: sourceMode === "github" ? "none" : undefined }}
         onDrop={onDrop}
         onDragOver={onDragOver}
         onDragLeave={onDragLeave}

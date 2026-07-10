@@ -49,6 +49,12 @@ export function NavBar() {
           >
             {messages.nav.settings}
           </Link>
+          <Link
+            href="/login"
+            className="text-slate-600 transition hover:text-brand-600"
+          >
+            {locale === "zh" ? "登录" : "Sign in"}
+          </Link>
           <button
             type="button"
             onClick={() => setLocale(locale === "en" ? "zh" : "en")}

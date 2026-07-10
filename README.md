@@ -128,6 +128,16 @@ curl -X POST \
   http://localhost:8080/api/deploy
 ```
 
+首次上传可以通过 `name` 创建项目；继续上传到已有项目时传入 `project_id`，系统会自动生成下一个版本：
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer YOUR_DEPLOY_TOKEN" \
+  -F "file=@dist-v2.zip" \
+  -F "project_id=prj_xxx" \
+  http://localhost:8080/api/deploy
+```
+
 **Folder upload** (multiple files with relative paths):
 
 ```bash
@@ -140,16 +150,35 @@ curl -X POST \
   http://localhost:8080/api/deploy-folder
 ```
 
+**Deploy from GitHub:**
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer YOUR_DEPLOY_TOKEN" \
+  -F "repository=https://github.com/owner/repository" \
+  -F "ref=main" \
+  -F "project_id=prj_xxx" \
+  http://localhost:8080/api/github/deploy
+```
+
 ## API Endpoints
 
 | Method | Path | Description | Auth |
 |---|---|---|---|
 | GET | `/api/health` | Health check | No |
+| GET | `/api/projects` | List projects and current versions | Yes |
+| GET | `/api/projects/{id}/deployments` | List project versions | Yes |
 | POST | `/api/deploy` | Upload and deploy a `.zip` | Yes |
 | POST | `/api/deploy-folder` | Upload and deploy a folder (multiple files) | Yes |
 | GET | `/api/deployments` | List deployments (paginated) | Yes |
 | GET | `/api/deployments/{id}` | Get deployment details | Yes |
 | DELETE | `/api/deployments/{id}` | Delete a deployment | Yes |
+| POST | `/api/projects/{id}/rollback/{version}` | Switch the stable project version | Yes |
+| POST | `/api/projects/{id}/domains` | Add a custom domain and return TXT challenge | Yes |
+| GET | `/api/projects/{id}/domains` | List project domains | Yes |
+| POST | `/api/domains/{id}/verify` | Verify a custom domain | Yes |
+| DELETE | `/api/domains/{id}` | Remove a custom domain | Yes |
+| POST | `/api/github/deploy` | Download and deploy a GitHub repository | Yes |
 
 Auth: `Authorization: Bearer <DEPLOY_TOKEN>`
 
@@ -187,15 +216,17 @@ API_URL=http://localhost:8000 DEPLOY_TOKEN=dev-token pnpm dev
 | Max file count | 5,000 |
 | Max deployed storage | 5 GB |
 | Required free-space reserve | 64 MB |
+| Versions kept per project | 10 |
 | Required | `index.html` in zip |
 
 Blocked file types: `.php`, `.exe`, `.sh`, `.py`, `.jar`, `.dll`, `.so`, `.bat`, `.env`, and more (see `apps/api/app/config.py`).
 
 ## Roadmap (post-MVP)
 
-- Multi-user support
-- Custom subdomains
-- Custom domains
-- GitHub integration
-- Auto-cleanup of old deployments
-- Deployment previews / rollbacks
+- [x] Multi-user support (`AUTH_MODE=users`)
+- [x] Platform subdomains (`project-slug.PUBLIC_DOMAIN`)
+- [x] Custom domains with DNS verification and optional Caddy HTTPS
+- [x] GitHub integration
+- [x] Auto-cleanup of old deployments
+- [x] Deployment previews / rollbacks
+- [ ] GitHub webhook-based automatic redeploys

@@ -23,6 +23,28 @@ export interface Deployment {
   file_count: number;
   total_size: number;
   created_at: string;
+  project_id?: string | null;
+  project_name?: string | null;
+  project_slug?: string | null;
+  version: number;
+  is_current?: boolean;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  slug: string;
+  current_deployment_id: string | null;
+  current_version: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectDomain {
+  id: string;
+  domain: string;
+  verified_at: string | null;
+  verification_token?: string;
 }
 
 export interface DeploymentListResponse {
@@ -61,6 +83,7 @@ export function uploadZip(
   name: string | undefined,
   onProgress: (percent: number) => void,
   env?: Record<string, string>,
+  projectId?: string,
 ): Promise<DeployResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -68,6 +91,9 @@ export function uploadZip(
     formData.append("file", file);
     if (name) {
       formData.append("name", name);
+    }
+    if (projectId) {
+      formData.append("project_id", projectId);
     }
     if (env && Object.keys(env).length > 0) {
       formData.append("env", JSON.stringify(env));
@@ -118,6 +144,7 @@ export function uploadFolder(
   name: string | undefined,
   onProgress: (percent: number) => void,
   env?: Record<string, string>,
+  projectId?: string,
 ): Promise<DeployResponse> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -133,6 +160,9 @@ export function uploadFolder(
 
     if (name) {
       formData.append("name", name);
+    }
+    if (projectId) {
+      formData.append("project_id", projectId);
     }
     if (env && Object.keys(env).length > 0) {
       formData.append("env", JSON.stringify(env));
@@ -173,6 +203,25 @@ export function uploadFolder(
   });
 }
 
+export async function deployGithub(
+  repository: string,
+  ref: string | undefined,
+  name: string | undefined,
+  projectId: string | undefined,
+): Promise<DeployResponse> {
+  const formData = new FormData();
+  formData.append("repository", repository);
+  if (ref) formData.append("ref", ref);
+  if (name) formData.append("name", name);
+  if (projectId) formData.append("project_id", projectId);
+  const res = await fetch("/console-api/github/deploy", {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) throw await res.json();
+  return res.json();
+}
+
 export async function listDeployments(
   limit = 50,
   offset = 0,
@@ -184,6 +233,34 @@ export async function listDeployments(
     throw await res.json();
   }
   return res.json();
+}
+
+export async function listProjects(): Promise<{ projects: Project[] }> {
+  const res = await fetch("/console-api/projects", { cache: "no-store" });
+  if (!res.ok) throw await res.json();
+  return res.json();
+}
+
+export async function rollbackProject(projectId: string, version: number): Promise<Deployment> {
+  const res = await fetch(`/console-api/projects/${encodeURIComponent(projectId)}/rollback/${version}`, { method: "POST" });
+  if (!res.ok) throw await res.json();
+  return res.json();
+}
+
+export async function addProjectDomain(projectId: string, domain: string): Promise<ProjectDomain & { verification: { name: string; value: string } }> {
+  const res = await fetch(`/console-api/projects/${encodeURIComponent(projectId)}/domains`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain }) });
+  if (!res.ok) throw await res.json();
+  return res.json();
+}
+
+export async function verifyProjectDomain(domainId: string): Promise<void> {
+  const res = await fetch(`/console-api/domains/${encodeURIComponent(domainId)}/verify`, { method: "POST" });
+  if (!res.ok) throw await res.json();
+}
+
+export async function deleteProjectDomain(domainId: string): Promise<void> {
+  const res = await fetch(`/console-api/domains/${encodeURIComponent(domainId)}`, { method: "DELETE" });
+  if (!res.ok) throw await res.json();
 }
 
 export async function getDeployment(id: string): Promise<Deployment> {

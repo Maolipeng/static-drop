@@ -1,5 +1,5 @@
 import { NavBar } from "@/components/NavBar";
-import { checkHealth } from "@/lib/api";
+import { checkHealth } from "@/lib/server-api";
 import { getMessages } from "@/lib/i18n";
 import { getRequestLocale } from "@/lib/i18n-server";
 

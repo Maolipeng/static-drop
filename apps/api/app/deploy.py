@@ -369,6 +369,33 @@ def current_deployments_size() -> int:
     return count_files_and_size(config.DEPLOYMENTS_DIR)[1]
 
 
+def sync_project_link(project_slug: str, deployment_id: str) -> None:
+    """Atomically point a stable project path at its current deployment."""
+    config.PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+    target = config.DEPLOYMENTS_DIR / deployment_id
+    link = config.PROJECTS_DIR / project_slug
+    temporary = config.PROJECTS_DIR / f".{project_slug}.tmp"
+    temporary.unlink(missing_ok=True)
+    temporary.symlink_to(target, target_is_directory=True)
+    temporary.replace(link)
+    if config.PUBLIC_DOMAIN:
+        sync_domain_link(f"{project_slug}.{config.PUBLIC_DOMAIN}", deployment_id)
+
+
+def sync_domain_link(host: str, deployment_id: str) -> None:
+    """Point a verified host at a deployment using an atomic symlink swap."""
+    host = host.lower().strip().rstrip(".")
+    if not host or any(char not in "abcdefghijklmnopqrstuvwxyz0123456789.-" for char in host):
+        raise DeployError("Invalid domain name")
+    config.DOMAINS_DIR.mkdir(parents=True, exist_ok=True)
+    target = config.DEPLOYMENTS_DIR / deployment_id
+    link = config.DOMAINS_DIR / host
+    temporary = config.DOMAINS_DIR / f".{host}.tmp"
+    temporary.unlink(missing_ok=True)
+    temporary.symlink_to(target, target_is_directory=True)
+    temporary.replace(link)
+
+
 def storage_error(incoming_size: int) -> str | None:
     """Return a user-facing quota error when storage cannot accept a deployment."""
     if current_deployments_size() + incoming_size > config.MAX_STORAGE_SIZE:

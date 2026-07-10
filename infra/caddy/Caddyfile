@@ -1,4 +1,17 @@
-{$PUBLIC_DOMAIN} {
+{
+    on_demand_tls {
+        ask http://api:8000/api/domains/certificate-check
+    }
+}
+
+:80 {
+    redir https://{host}{uri} permanent
+}
+
+:443 {
+    tls {
+        on_demand
+    }
     encode gzip
     reverse_proxy nginx:80
 }

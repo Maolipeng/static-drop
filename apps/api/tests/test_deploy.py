@@ -1,7 +1,9 @@
 from pathlib import Path
 import asyncio
+import zipfile
 
 import pytest
+from fastapi.testclient import TestClient
 
 from app.deploy import (
     DeployError,
@@ -10,7 +12,8 @@ from app.deploy import (
     rewrite_html_paths,
     safe_write_uploaded_files,
 )
-from app.main import _parse_env
+from app.main import _parse_env, app
+from app import config, db
 
 
 def test_runtime_env_uses_deployment_url_and_escapes_script_content(tmp_path: Path) -> None:
@@ -93,3 +96,32 @@ def test_folder_upload_rejects_windows_path_traversal(tmp_path: Path) -> None:
         asyncio.run(
             safe_write_uploaded_files([FakeUpload("..\\secret.txt", b"x")], tmp_path)
         )
+
+
+def test_github_deploy_downloads_and_creates_a_version(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "staticdrop.db")
+    monkeypatch.setattr(config, "TMP_DIR", tmp_path / "tmp")
+    monkeypatch.setattr(config, "DEPLOYMENTS_DIR", tmp_path / "deployments")
+    monkeypatch.setattr(config, "PROJECTS_DIR", tmp_path / "projects")
+    monkeypatch.setattr(config, "DOMAINS_DIR", tmp_path / "domains")
+    monkeypatch.setattr(config, "DEPLOY_TOKEN", "test-token")
+    monkeypatch.setattr(config, "PUBLIC_BASE_URL", "http://testserver")
+    db.init_db()
+
+    def fake_download(_repository, _ref, destination: Path) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with zipfile.ZipFile(destination, "w") as archive:
+            archive.writestr("repo/index.html", "<html><body>github</body></html>")
+
+    monkeypatch.setattr("app.main._download_github_archive", fake_download)
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/github/deploy",
+            headers={"Authorization": "Bearer test-token"},
+            data={"repository": "https://github.com/example/site", "ref": "main"},
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source_zip"] == "github:github.com/example/site"
+    assert (config.DEPLOYMENTS_DIR / payload["id"] / "index.html").exists()

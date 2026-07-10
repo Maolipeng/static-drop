@@ -1,6 +1,7 @@
 import { NavBar } from "@/components/NavBar";
 import { CopyButton } from "@/components/CopyButton";
-import { getDeployment, formatBytes, formatDate } from "@/lib/api";
+import { formatBytes, formatDate } from "@/lib/api";
+import { getDeployment } from "@/lib/server-api";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getMessages } from "@/lib/i18n";
@@ -91,6 +92,22 @@ export default async function DeploymentDetailPage({
 
         {/* Details grid */}
         <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {messages.detail.project}
+            </p>
+            <p className="mt-1 truncate text-sm text-slate-700">
+              {deployment.project_name || deployment.name || "—"}
+            </p>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-white p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              {messages.detail.version}
+            </p>
+            <p className="mt-1 text-lg font-semibold text-slate-700">
+              v{deployment.version}
+            </p>
+          </div>
           <div className="rounded-xl border border-slate-200 bg-white p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
               {messages.detail.deployId}

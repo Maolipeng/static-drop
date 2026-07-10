@@ -14,10 +14,18 @@ services:
       - staticdrop-data:/data
     environment:
       DEPLOY_TOKEN: ${DEPLOY_TOKEN:-change-me-to-a-random-string}
+      AUTH_MODE: ${AUTH_MODE:-token}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-to-a-random-password}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-14}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-}
       CORS_ORIGINS: ${CORS_ORIGINS:-}
       DATA_DIR: /data
       DEPLOYMENTS_DIR: /data/deployments
+      PROJECTS_DIR: /data/projects
+      DOMAINS_DIR: /data/domains
       DB_PATH: /data/db/staticdrop.db
       TMP_DIR: /data/tmp
       MAX_ZIP_SIZE: ${MAX_ZIP_SIZE:-104857600}
@@ -26,6 +34,8 @@ services:
       MAX_FILE_COUNT: ${MAX_FILE_COUNT:-5000}
       MAX_STORAGE_SIZE: ${MAX_STORAGE_SIZE:-5368709120}
       MIN_FREE_SPACE: ${MIN_FREE_SPACE:-67108864}
+      MAX_VERSIONS_PER_PROJECT: ${MAX_VERSIONS_PER_PROJECT:-10}
+      AUTO_CLEANUP_ENABLED: ${AUTO_CLEANUP_ENABLED:-true}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
       interval: 30s

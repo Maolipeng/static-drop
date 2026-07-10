@@ -17,7 +17,12 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const accept = request.headers.get("accept");
   if (contentType) headers.set("content-type", contentType);
   if (accept) headers.set("accept", accept);
-  headers.set("authorization", `Bearer ${DEPLOY_TOKEN}`);
+  const session = request.cookies.get("staticdrop_session")?.value;
+  if (session) {
+    headers.set("cookie", `staticdrop_session=${encodeURIComponent(session)}`);
+  } else {
+    headers.set("authorization", `Bearer ${DEPLOY_TOKEN}`);
+  }
 
   const init: RequestInit & { duplex?: "half" } = {
     method: request.method,
@@ -31,6 +36,8 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   const responseHeaders = new Headers();
   const responseContentType = response.headers.get("content-type");
   if (responseContentType) responseHeaders.set("content-type", responseContentType);
+  const setCookie = response.headers.get("set-cookie");
+  if (setCookie) responseHeaders.set("set-cookie", setCookie);
   return new NextResponse(response.body, {
     status: response.status,
     headers: responseHeaders,

@@ -1,5 +1,6 @@
 import { NavBar } from "@/components/NavBar";
-import { listDeployments, formatBytes, formatDate } from "@/lib/api";
+import { formatBytes, formatDate } from "@/lib/api";
+import { listDeployments } from "@/lib/server-api";
 import Link from "next/link";
 import { getMessages } from "@/lib/i18n";
 import { getRequestLocale } from "@/lib/i18n-server";
@@ -95,9 +96,9 @@ export default async function DeploymentsPage() {
                   <tr key={d.id} className="transition hover:bg-slate-50">
                     <td className="px-4 py-3">
                       <p className="font-medium text-slate-800">
-                        {d.name || d.source_zip}
+                        {d.project_name || d.name || d.source_zip}
                       </p>
-                      <p className="font-mono text-xs text-slate-400">{d.id}</p>
+                      <p className="font-mono text-xs text-slate-400">v{d.version} · {d.id}</p>
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       {d.file_count.toLocaleString()}
