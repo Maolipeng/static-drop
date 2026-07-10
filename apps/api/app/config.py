@@ -34,6 +34,10 @@ AUTH_MODE: str = _env_str("AUTH_MODE", "token").lower()
 ADMIN_EMAIL: str = _env_str("ADMIN_EMAIL", "admin@example.com")
 ADMIN_PASSWORD: str = _env_str("ADMIN_PASSWORD", "change-me-to-a-random-password")
 GITHUB_TOKEN: str = _env_str("GITHUB_TOKEN", "")
+CLOUDFLARE_API_TOKEN: str = _env_str("CLOUDFLARE_API_TOKEN", "")
+CLOUDFLARE_ZONE_ID: str = _env_str("CLOUDFLARE_ZONE_ID", "")
+CLOUDFLARE_ZONE_NAME: str = _env_str("CLOUDFLARE_ZONE_NAME", "")
+CLOUDFLARE_API_URL: str = _env_str("CLOUDFLARE_API_URL", "https://api.cloudflare.com/client/v4")
 SESSION_TTL_DAYS: int = _env_int("SESSION_TTL_DAYS", 14)
 
 # --- Public URL ---

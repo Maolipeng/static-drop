@@ -18,6 +18,10 @@ services:
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@example.com}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-to-a-random-password}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
+      CLOUDFLARE_ZONE_NAME: ${CLOUDFLARE_ZONE_NAME:-}
+      CLOUDFLARE_API_URL: ${CLOUDFLARE_API_URL:-https://api.cloudflare.com/client/v4}
       SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-14}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
       PUBLIC_DOMAIN: ${PUBLIC_DOMAIN:-}

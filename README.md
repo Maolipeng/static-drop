@@ -96,6 +96,16 @@ docker compose --profile domain up --build -d
 
 Caddy 会监听 80/443 并自动申请、续期证书；原有 `/s/{deploymentId}/` 路径和 `http://服务器IP:8080` 访问仍然保留。`DOMAIN_MODE=disabled` 时不会启动 Caddy，也不会要求域名或 HTTPS。
 
+如果要自动创建自定义域名的 DNS 记录，可以配置 Cloudflare API Token（仅授予对应 Zone 的 DNS 编辑权限）：
+
+```dotenv
+CLOUDFLARE_API_TOKEN=...
+CLOUDFLARE_ZONE_ID=...
+CLOUDFLARE_ZONE_NAME=example.com
+```
+
+项目域名管理中的“使用 Cloudflare 自动配置”会创建 DNS-only CNAME 和 TXT 验证记录。等待 DNS 传播后点击“验证”，Caddy 将自动申请并续期 HTTPS；未配置 Cloudflare 时仍可使用手动 DNS 模式。
+
 ### 构建源配置
 
 默认使用 Docker Hub、npm 官方源和 PyPI 官方源。需要使用国内镜像时，在 `.env` 中配置：
@@ -176,6 +186,7 @@ curl -X POST \
 | POST | `/api/projects/{id}/rollback/{version}` | Switch the stable project version | Yes |
 | POST | `/api/projects/{id}/domains` | Add a custom domain and return TXT challenge | Yes |
 | GET | `/api/projects/{id}/domains` | List project domains | Yes |
+| POST | `/api/projects/{id}/domains/provision` | Create Cloudflare DNS records for a custom domain | Yes |
 | POST | `/api/domains/{id}/verify` | Verify a custom domain | Yes |
 | DELETE | `/api/domains/{id}` | Remove a custom domain | Yes |
 | POST | `/api/github/deploy` | Download and deploy a GitHub repository | Yes |

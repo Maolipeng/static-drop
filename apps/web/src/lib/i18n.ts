@@ -29,7 +29,7 @@ const messages = {
     detail: {
       success: "Deployed successfully!", successHelp: "Your site is live and ready to share.", liveUrl: "Live URL", openSite: "Open site",
       project: "Project", version: "Version", deployId: "Deploy ID", fileCount: "File count", totalSize: "Total size", source: "Source", name: "Name", deployedAt: "Deployed at",
-      newDeployment: "New deployment", viewAll: "View all", domains: "Domains", addDomain: "Add", verifyDomain: "Verify", removeDomain: "Remove", verified: "verified", pending: "pending", domainPlaceholder: "www.example.com", domainFailed: "Operation failed",
+      newDeployment: "New deployment", viewAll: "View all", domains: "Domains", addDomain: "Add", autoConfigureDomain: "Auto-configure with Cloudflare", dnsProvisioned: "DNS records created. Verify after propagation.", verifyDomain: "Verify", removeDomain: "Remove", verified: "verified", pending: "pending", domainPlaceholder: "www.example.com", domainFailed: "Operation failed",
     },
     settings: {
       title: "Settings", systemHealth: "System Health", error: "Error", database: "Database", dataDirectory: "Data directory", deploymentsPath: "Deployments path",
@@ -55,7 +55,7 @@ const messages = {
       uploadNow: "立即上传", nameId: "名称 / ID", files: "文件数", size: "大小", deployed: "部署时间", view: "查看 →", loadError: "加载部署记录失败",
     },
     detail: {
-      success: "部署成功！", successHelp: "你的网站已经上线，可以分享了。", liveUrl: "访问地址", openSite: "打开网站", project: "项目", version: "版本", deployId: "部署 ID", fileCount: "文件数", totalSize: "总大小", source: "来源", name: "名称", deployedAt: "部署时间", newDeployment: "新建部署", viewAll: "查看全部", domains: "域名", addDomain: "添加", verifyDomain: "验证", removeDomain: "移除", verified: "已验证", pending: "待验证", domainPlaceholder: "www.example.com", domainFailed: "操作失败",
+      success: "部署成功！", successHelp: "你的网站已经上线，可以分享了。", liveUrl: "访问地址", openSite: "打开网站", project: "项目", version: "版本", deployId: "部署 ID", fileCount: "文件数", totalSize: "总大小", source: "来源", name: "名称", deployedAt: "部署时间", newDeployment: "新建部署", viewAll: "查看全部", domains: "域名", addDomain: "添加", autoConfigureDomain: "使用 Cloudflare 自动配置", dnsProvisioned: "DNS 记录已创建，等待传播后请点击验证。", verifyDomain: "验证", removeDomain: "移除", verified: "已验证", pending: "待验证", domainPlaceholder: "www.example.com", domainFailed: "操作失败",
     },
     settings: {
       title: "设置", systemHealth: "系统健康", error: "错误", database: "数据库", dataDirectory: "数据目录", deploymentsPath: "部署目录", authentication: "身份验证", tokenConfigured: "Token 已配置", defaultToken: "正在使用默认 Token — 请设置 DEPLOY_TOKEN", tokenHelp: "Token 通过 API 服务端的 DEPLOY_TOKEN 环境变量配置。", uploadLimits: "上传限制", maxZip: "最大 zip 大小", maxUncompressed: "最大总大小（解压后）", maxFile: "单文件最大大小", maxCount: "最大文件数", limitsHelp: "这些限制可以通过 API 服务端的环境变量覆盖。",

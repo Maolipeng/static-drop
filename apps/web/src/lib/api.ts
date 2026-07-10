@@ -253,6 +253,12 @@ export async function addProjectDomain(projectId: string, domain: string): Promi
   return res.json();
 }
 
+export async function provisionProjectDomain(projectId: string, domain: string): Promise<ProjectDomain & { dns_records: unknown[] }> {
+  const res = await fetch(`/console-api/projects/${encodeURIComponent(projectId)}/domains/provision`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ domain }) });
+  if (!res.ok) throw await res.json();
+  return res.json();
+}
+
 export async function verifyProjectDomain(domainId: string): Promise<void> {
   const res = await fetch(`/console-api/domains/${encodeURIComponent(domainId)}/verify`, { method: "POST" });
   if (!res.ok) throw await res.json();

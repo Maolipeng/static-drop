@@ -125,3 +125,39 @@ def test_github_deploy_downloads_and_creates_a_version(tmp_path: Path, monkeypat
     payload = response.json()
     assert payload["source_zip"] == "github:github.com/example/site"
     assert (config.DEPLOYMENTS_DIR / payload["id"] / "index.html").exists()
+
+
+def test_cloudflare_provision_creates_dns_records_for_project(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(config, "DB_PATH", tmp_path / "staticdrop.db")
+    monkeypatch.setattr(config, "DEPLOY_TOKEN", "test-token")
+    monkeypatch.setattr(config, "TMP_DIR", tmp_path / "tmp")
+    monkeypatch.setattr(config, "DEPLOYMENTS_DIR", tmp_path / "deployments")
+    monkeypatch.setattr(config, "PROJECTS_DIR", tmp_path / "projects")
+    monkeypatch.setattr(config, "DOMAINS_DIR", tmp_path / "domains")
+    monkeypatch.setattr(config, "PUBLIC_DOMAIN", "drop.example.com")
+    monkeypatch.setattr(config, "CLOUDFLARE_API_TOKEN", "cf-test", raising=False)
+    monkeypatch.setattr(config, "CLOUDFLARE_ZONE_ID", "zone-test", raising=False)
+    monkeypatch.setattr(config, "CLOUDFLARE_ZONE_NAME", "example.com", raising=False)
+    db.init_db()
+    project = db.create_project("Cloudflare Site")
+
+    calls = []
+
+    def fake_cloudflare_request(method, path, payload=None):
+        calls.append((method, path, payload))
+        if method == "GET":
+            return {"success": True, "result": []}
+        return {"success": True, "result": {"id": "record-id"}}
+
+    monkeypatch.setattr("app.main._cloudflare_request", fake_cloudflare_request, raising=False)
+    with TestClient(app) as client:
+        response = client.post(
+            f"/api/projects/{project['id']}/domains/provision",
+            headers={"Authorization": "Bearer test-token"},
+            json={"domain": "www.example.com"},
+        )
+
+    assert response.status_code == 201
+    assert response.json()["domain"]["domain"] == "www.example.com"
+    assert any(call[2]["type"] == "CNAME" for call in calls if call[2])
+    assert any(call[2]["type"] == "TXT" for call in calls if call[2])

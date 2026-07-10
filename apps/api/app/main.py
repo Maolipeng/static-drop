@@ -20,6 +20,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from fastapi import Cookie, Depends, FastAPI, File, Form, Header, HTTPException, Query, UploadFile
@@ -91,6 +92,51 @@ class AuthRequest(BaseModel):
 
 class DomainRequest(BaseModel):
     domain: str
+
+
+def _cloudflare_request(method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    if not config.CLOUDFLARE_API_TOKEN or not config.CLOUDFLARE_ZONE_ID:
+        raise ValueError("Cloudflare DNS automation is not configured")
+    body = None
+    headers = {
+        "Authorization": f"Bearer {config.CLOUDFLARE_API_TOKEN}",
+        "Accept": "application/json",
+        "User-Agent": "StaticDrop/0.1",
+    }
+    if payload is not None:
+        import json
+
+        body = json.dumps(payload).encode()
+        headers["Content-Type"] = "application/json"
+    request = Request(f"{config.CLOUDFLARE_API_URL.rstrip('/')}{path}", data=body, headers=headers, method=method)
+    try:
+        with urlopen(request, timeout=15) as response:
+            import json
+
+            result = json.loads(response.read().decode())
+    except HTTPError as exc:
+        raise ValueError(f"Cloudflare API request failed with HTTP {exc.code}") from exc
+    except OSError as exc:
+        raise ValueError("Cloudflare API is unavailable") from exc
+    if not result.get("success"):
+        errors = result.get("errors") or []
+        detail = errors[0].get("message") if errors and isinstance(errors[0], dict) else "request rejected"
+        raise ValueError(f"Cloudflare API rejected the request: {detail}")
+    return result
+
+
+def _cloudflare_upsert_record(zone_id: str, record: dict[str, Any]) -> dict[str, Any]:
+    import urllib.parse
+
+    query = urllib.parse.urlencode({"name": record["name"]})
+    existing = _cloudflare_request("GET", f"/zones/{zone_id}/dns_records?{query}").get("result") or []
+    for item in existing:
+        if item.get("type") != record["type"]:
+            raise ValueError(f"Cloudflare already has a conflicting {item.get('type')} record for {record['name']}")
+    if existing:
+        item = existing[0]
+        return _cloudflare_request("PUT", f"/zones/{zone_id}/dns_records/{item['id']}", record).get("result") or item
+    return _cloudflare_request("POST", f"/zones/{zone_id}/dns_records", record).get("result") or record
 
 
 def _download_github_archive(repository: str, ref: str | None, destination: Path) -> None:
@@ -422,6 +468,41 @@ def project_domains(
     if not db.get_project(project_id, user["id"], bool(user["is_admin"])):
         return _error("Project not found", "NOT_FOUND", 404)
     return {"domains": db.list_project_domains(project_id)}
+
+
+@app.post("/api/projects/{project_id}/domains/provision")
+def provision_domain(
+    project_id: str,
+    payload: DomainRequest,
+    user: dict[str, Any] = Depends(require_auth),
+) -> JSONResponse:
+    project = db.get_project(project_id, user["id"], bool(user["is_admin"]))
+    if not project:
+        return _error("Project not found", "NOT_FOUND", 404)
+    if not config.CLOUDFLARE_API_TOKEN or not config.CLOUDFLARE_ZONE_ID:
+        return _error("Cloudflare DNS automation is not configured", "CLOUDFLARE_NOT_CONFIGURED", 503)
+    try:
+        domain_name = payload.domain.strip().lower().rstrip(".")
+        zone_name = config.CLOUDFLARE_ZONE_NAME.strip().lower().rstrip(".")
+        if not zone_name:
+            zone = _cloudflare_request("GET", f"/zones/{config.CLOUDFLARE_ZONE_ID}").get("result") or {}
+            zone_name = str(zone.get("name", "")).lower().rstrip(".")
+        if not zone_name or not (domain_name == zone_name or domain_name.endswith(f".{zone_name}")):
+            return _error("Domain is outside the configured Cloudflare zone", "VALIDATION_ERROR", 422)
+        target = config.PUBLIC_DOMAIN.strip().lower().rstrip(".")
+        if not target:
+            return _error("PUBLIC_DOMAIN is required for automatic DNS configuration", "CONFIGURATION_ERROR", 503)
+        if domain_name == target:
+            return _error("Custom domain cannot be the platform domain", "VALIDATION_ERROR", 422)
+        domain = db.create_domain(project_id, domain_name)
+        cname = {"type": "CNAME", "name": domain_name, "content": target, "ttl": 1, "proxied": False}
+        challenge = {"type": "TXT", "name": f"_staticdrop-challenge.{domain_name}", "content": domain["verification_token"], "ttl": 60}
+        dns_records = [_cloudflare_upsert_record(config.CLOUDFLARE_ZONE_ID, cname), _cloudflare_upsert_record(config.CLOUDFLARE_ZONE_ID, challenge)]
+    except ValueError as exc:
+        if "domain" in locals() and domain:
+            db.delete_domain(domain["id"])
+        return _error(str(exc), "CLOUDFLARE_ERROR", 502)
+    return JSONResponse(status_code=201, content={"domain": domain, "dns_records": dns_records, "verified": False})
 
 
 @app.post("/api/domains/{domain_id}/verify")
